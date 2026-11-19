@@ -1,6 +1,8 @@
 """Load embeddings cached by multimodal-biqa, aligned to a dataset's image order.
 
-Expected layout (adapt `_read` if multimodal-biqa saved them differently):
+Supported layouts:
+    <feat_root>/<dataset>_<backbone>.npz          arrays names, feats  (multimodal-biqa cache)
+or
     <feat_root>/<dataset>/<backbone>.npy          float array, shape (N, D)
     <feat_root>/<dataset>/<backbone>_names.txt    one image name per line, same order
 
@@ -28,6 +30,16 @@ def zscore(x: np.ndarray, mu=None, sd=None):
 
 
 def _read(feat_root: Path, dataset: str, backbone: str):
+    # multimodal-biqa format: <feat_root>/<dataset>_<backbone>.npz with arrays names, feats
+    npz = Path(feat_root) / f"{dataset}_{backbone}.npz"
+    if npz.exists():
+        z = np.load(npz, allow_pickle=False)
+        feats, names = z["feats"], [str(n) for n in z["names"]]
+        if feats.ndim == 3:  # (N, crops, D): average the crops
+            feats = feats.mean(axis=1)
+        if len(names) != len(feats):
+            raise ValueError(f"{npz.name}: {len(feats)} features but {len(names)} names")
+        return feats, names
     d = Path(feat_root) / dataset
     feats = np.load(d / f"{backbone}.npy")
     names = (d / f"{backbone}_names.txt").read_text().split()

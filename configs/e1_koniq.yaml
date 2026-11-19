@@ -1,9 +1,14 @@
-# E1: training-free kNN on KonIQ-10k
-dataset: koniq
-data_root: /path/to/koniq10k            # folder with koniq10k_distributions_sets.csv
-feat_root: /path/to/multimodal-biqa/features
+# E1: training-free kNN on KonIQ-10k, on the same 5 splits as the LoRA experiments.
+# Paths are relative to the retrieval-biqa folder, which sits inside biqa-revision.
+source: manifest
+project_root: ..                 # biqa-revision: has manifests/ and splits/
+feat_root: ../cache              # <dataset>_<backbone>.npz
+dataset: koniq10k
+split_kind: reference            # splits/koniq10k_reference.json
 seed: 0
-embeddings: [siglip, clip, nss, "concat:siglip+clip", "concat:siglip+clip+nss"]
+embeddings: [siglip, siglip2, cliph, nss, "concat:siglip+cliph", "concat:siglip+cliph+nss"]
+# onealign features come from a quality-trained model. Run them as a separate, clearly
+# labelled row: retrieval over quality-tuned features is not comparable to frozen generic ones.
 k: [1, 5, 10, 20]
 tau: [0.01, 0.02, 0.05, 0.1, 1.0]
 out_dir: results/e1

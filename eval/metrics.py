@@ -1,6 +1,8 @@
 """SRCC, PLCC (after the standard 4-parameter logistic mapping), and evidence metrics."""
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 from scipy.optimize import curve_fit
 from scipy.stats import pearsonr, spearmanr
@@ -20,7 +22,9 @@ def plcc(pred, gt, fit: bool = True) -> float:
     if fit:
         try:
             p0 = [gt.max(), gt.min(), np.median(pred), pred.std() + 1e-6]
-            popt, _ = curve_fit(_logistic4, pred, gt, p0=p0, maxfev=20000)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                popt, _ = curve_fit(_logistic4, pred, gt, p0=p0, maxfev=20000)
             pred = _logistic4(pred, *popt)
         except RuntimeError:
             pass  # fall back to raw PLCC

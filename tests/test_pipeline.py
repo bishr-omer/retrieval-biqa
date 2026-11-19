@@ -106,10 +106,10 @@ def test_e0_e1_end_to_end(tmp_path):
     feats = {"siglip": X, "clip": X}
     r1 = run_e1.run({**base, "embeddings": ["siglip", "clip"], "k": [5, 10], "tau": [0.05, 1.0],
                      "out_dir": str(tmp_path / "e1")}, df=df, feats_by_emb=feats)
-    assert r1["test"]["srcc"] > 0.3
+    assert r1["summary"]["test.srcc"]["mean"] > 0.3
     r0 = run_e0.run({**base, "embeddings": ["siglip"], "alphas": [0.1, 1.0],
                      "out_dir": str(tmp_path / "e0"), "lora_reference": {"srcc": 0.9, "plcc": 0.92}},
                     df=df, feats_by_emb=feats)
-    assert "siglip" in r0
+    assert r0["siglip"]["summary"]["test.srcc"]["mean"] > 0.3
     cost = pd.read_csv(tmp_path / "cost.csv")
-    assert {"kNN (siglip, k=10)", "linear probe (siglip)", "LoRA (reference)"} & set(cost["method"])
+    assert {"kNN (E1, tuned per split)", "linear probe (siglip)", "LoRA (reference)"} <= set(cost["method"])

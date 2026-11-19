@@ -3,5 +3,5 @@ scipy
 pandas
 scikit-learn
 pyyaml
-faiss-cpu  # or faiss-gpu on the cluster
+# faiss-cpu  # optional; code falls back to numpy. On old clusters: conda install -c conda-forge faiss-cpu
 pytest

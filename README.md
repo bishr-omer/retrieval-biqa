@@ -3,6 +3,7 @@
 Does retrieving similar images with known quality scores improve blind image quality
 prediction, and does the retrieved evidence actually explain the score?
 
+This is a skills project. Retrieval for IQA has been done before (see Related work).
 What this repo contributes is a careful protocol: leakage-free retrieval, a cost-versus-accuracy
 table, a fair test of database updates against few-shot fine-tuning, and checks of whether
 predictions depend on the evidence.
@@ -23,8 +24,9 @@ Filled in as experiments run. Negative results are reported as they are.
 ## Protocol
 - **Scores:** MOS normalised to [0, 1] per dataset using its fixed scale (KonIQ 1-5,
   LIVEC 0-100, KADID 1-5), so datasets can share one index.
-- **Splits:** official KonIQ split (7058 / 1000 / 2010). KADID is split by reference scene.
-  Seeds fixed.
+- **Splits:** the 5 reference-level splits used for the LoRA experiments (`splits/*_reference.json`),
+  reported as mean ± std. If a split has no validation set, 10% of the train scenes are held out
+  (seeded) for tuning. No reference scene appears in both train and test (checked at load time).
 - **No test leakage:** the index holds the train split only. Hyperparameters (k, embedding,
   temperature, ridge alpha) are picked on validation and reported once on test.
 - **Leave-one-out:** when the query set is also in the index (E2 training), each query's own
@@ -36,24 +38,27 @@ Filled in as experiments run. Negative results are reported as they are.
 
 ## Setup
 ```bash
-pip install -r requirements.txt          # use faiss-gpu on the cluster if you like
+pip install -r requirements.txt          # FAISS optional; numpy fallback is fine at this scale
 python -m pytest -q tests/               # synthetic-data checks of plumbing and leakage guards
 ```
 
-Cached features are reused from `multimodal-biqa`. `features/load_cached.py` expects:
+This repo lives inside the `multimodal-biqa` project folder (`biqa-revision/`) and reads
+from it directly, so results use **the same 5 splits as the LoRA experiments**:
 ```
-<feat_root>/<dataset>/<backbone>.npy          (N, D)
-<feat_root>/<dataset>/<backbone>_names.txt    image names, same order
+biqa-revision/
+├── cache/<dataset>_<backbone>.npz     names, feats (siglip, siglip2, cliph, nss, onealign)
+├── manifests/<dataset>.csv            image, ref, mos
+├── splits/<dataset>_reference.json    list of 5 splits
+└── retrieval-biqa/                    this repo
 ```
-If your cache is stored differently, edit only `_read()` in that file.
 
-Set `data_root` and `feat_root` in `configs/*.yaml`, then:
 ```bash
+python scripts/check_setup.py --config configs/e1_koniq.yaml   # checks alignment, trains nothing
 bash scripts/run_e0.sh
 bash scripts/run_e1.sh
 ```
-Outputs: `results/e0/result.json`, `results/e1/sweep_val.csv`, `results/e1/result.json`,
-`results/cost.csv`.
+Outputs: `results/e0/result.json`, `results/e1/result.json` (mean ± std over splits plus
+per-split detail), `results/e1/sweep_val_split*.csv`, `results/cost.csv`.
 
 ## Layout
 ```
