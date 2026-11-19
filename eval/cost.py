@@ -1,7 +1,7 @@
 """Cost table: every method reports what it costs next to how well it does.
 
-This is the link to the vacancy's "adapt within a compute budget" direction. Fill one row
-per method (linear probe, LoRA, kNN, retrieval head, database update) into results/cost.csv.
+This is the link to the vacancy's "adapt within a compute budget" direction. One row per
+method in results/cost.csv. Re-running a method replaces its row instead of adding a duplicate.
 """
 from __future__ import annotations
 
@@ -24,9 +24,12 @@ def timer():
 def log_row(path: str | Path, **row) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    new = not path.exists()
-    with path.open("a", newline="") as f:
+    rows = []
+    if path.exists():
+        with path.open(newline="") as f:
+            rows = [r for r in csv.DictReader(f) if r.get("method") != row.get("method")]
+    rows.append({k: row.get(k, "") for k in FIELDS})
+    with path.open("w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=FIELDS)
-        if new:
-            w.writeheader()
-        w.writerow({k: row.get(k, "") for k in FIELDS})
+        w.writeheader()
+        w.writerows({k: r.get(k, "") for k in FIELDS} for r in rows)

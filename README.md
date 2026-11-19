@@ -11,15 +11,29 @@ predictions depend on the evidence.
 ## Status
 | Exp | What | Status |
 |---|---|---|
-| E0 | Linear probe on frozen SigLIP / CLIP; LoRA reference | code ready |
-| E1 | Training-free kNN (k, embedding, temperature sweep) | code ready |
+| E0 | Linear probe on frozen SigLIP / CLIP; LoRA reference | done (LoRA numbers pending) |
+| E1 | Training-free kNN (k, embedding, temperature sweep) | done |
+| E1b | Does retrieval add anything beyond a probe? PLS-kNN and probe + residual kNN | code ready |
 | E2 | Retrieval + cross-attention head | todo |
 | E3 | KonIQ → LIVEC, database update vs few-shot LoRA | todo |
 | E4 | Shuffled-score test, KADID distortion precision@k, figures | partial (shuffle test in E1) |
 | E5 | VLM given retrieved images + scores (stretch) | todo |
 
 ## Results
-Filled in as experiments run. Negative results are reported as they are.
+KonIQ-10k, 5 reference-level splits, mean ± std on test. Negative results are reported as they are.
+
+| Method | Trainable params | SRCC | PLCC |
+|---|---|---|---|
+| kNN, frozen features (E1, concat SigLIP+CLIP-H+NSS, k 10-20) | 0 | 0.771 ± 0.007 | 0.791 ± 0.005 |
+| Linear probe, SigLIP (E0) | 1,153 | 0.881 ± 0.006 | 0.901 ± 0.002 |
+| Linear probe, SigLIP2 (E0) | 1,153 | 0.878 ± 0.008 | 0.902 ± 0.005 |
+| Linear probe, CLIP-H (E0) | 1,025 | 0.894 ± 0.006 | 0.912 ± 0.003 |
+| LoRA (reference) | pending | pending | pending |
+
+**Finding 1.** Training-free retrieval on frozen generic embeddings is about 0.12 SRCC below a
+linear probe on the same features. The quality signal is present (the probe finds it) but
+cosine similarity is dominated by content, so nearest neighbours share scenes, not quality.
+Shuffling neighbour scores drops kNN to ~0 SRCC, as expected for a method with no other input.
 
 ## Protocol
 - **Scores:** MOS normalised to [0, 1] per dataset using its fixed scale (KonIQ 1-5,

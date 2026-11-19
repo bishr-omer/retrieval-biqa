@@ -1,0 +1,14 @@
+# E1b: does retrieval add anything beyond a linear probe? Same 5 splits as E0/E1/LoRA.
+source: manifest
+project_root: ..
+feat_root: ../cache
+dataset: koniq10k
+split_kind: reference
+seed: 0
+embeddings: [cliph, siglip, "concat:siglip+cliph+nss"]
+pls_dims: [8, 16, 32, 64]
+k: [5, 10, 20, 50, 100]
+tau: [0.05, 0.1, 0.2, 0.5, 1.0]
+lam: [0.0, 0.25, 0.5, 0.75, 1.0]
+alphas: [0.01, 0.1, 1.0, 10.0, 100.0]
+out_dir: results/e1b
