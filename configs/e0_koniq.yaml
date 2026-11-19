@@ -1,0 +1,10 @@
+# E0: linear probe on frozen features (ridge regression, alpha chosen on validation)
+dataset: koniq
+data_root: /path/to/koniq10k
+feat_root: /path/to/multimodal-biqa/features
+seed: 0
+embeddings: [siglip, clip]
+alphas: [0.01, 0.1, 1.0, 10.0, 100.0]
+# Paste your LoRA model's KonIQ test numbers here so they appear in the same table.
+lora_reference: {srcc: null, plcc: null, trainable_params: null, train_gpu_hours: null}
+out_dir: results/e0

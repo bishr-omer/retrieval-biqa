@@ -1,0 +1,9 @@
+# E1: training-free kNN on KonIQ-10k
+dataset: koniq
+data_root: /path/to/koniq10k            # folder with koniq10k_distributions_sets.csv
+feat_root: /path/to/multimodal-biqa/features
+seed: 0
+embeddings: [siglip, clip, nss, "concat:siglip+clip", "concat:siglip+clip+nss"]
+k: [1, 5, 10, 20]
+tau: [0.01, 0.02, 0.05, 0.1, 1.0]
+out_dir: results/e1
