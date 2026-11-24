@@ -1,0 +1,23 @@
+# E3: train on KonIQ-10k, test on LIVE in the Wild; database update vs refitting.
+source: manifest
+project_root: ..
+feat_root: ../cache
+source_dataset: koniq10k
+target: liveitw
+split_kind: reference
+seed: 0
+embeddings: ["concat:siglip+cliph+nss", cliph]
+source_splits: 5          # one KonIQ probe per split
+N: [10, 25, 50, 100]      # labelled LIVE-itW images added
+draws: 10                 # random support sets per N (identical for every method)
+alphas: [0.01, 0.1, 1.0, 10.0, 100.0]
+# Retrieval settings fixed in advance (no target validation set). All are reported.
+retrieval:
+  - {index: source, k: 100, tau: 0.2, lam: 1.0}
+  - {index: mixed,  k: 20,  tau: 0.2, lam: 1.0}
+  - {index: mixed,  k: 100, tau: 0.2, lam: 1.0}
+  - {index: target, k: 5,   tau: 0.2, lam: 1.0}
+  - {index: target, k: 10,  tau: 0.2, lam: 1.0}
+refit_target_weight: 0.1  # in the upweighted refit, target images carry 10% of total weight
+target_ceiling: true
+out_dir: results/e3

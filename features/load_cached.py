@@ -48,8 +48,20 @@ def _read(feat_root: Path, dataset: str, backbone: str):
     return feats, names
 
 
-def load_features(feat_root, dataset: str, spec: str, names_in_order) -> np.ndarray:
-    """Return an (len(names_in_order), D) L2-normalised matrix."""
+def nss_stats(feat_root, dataset: str):
+    """Mean and std of the raw NSS features of a whole dataset (unlabelled statistics)."""
+    feats, _ = _read(feat_root, dataset, "nss")
+    feats = feats.astype(np.float32)
+    return feats.mean(0), feats.std(0) + 1e-8
+
+
+def load_features(feat_root, dataset: str, spec: str, names_in_order, nss_ref=None) -> np.ndarray:
+    """Return an (len(names_in_order), D) L2-normalised matrix.
+
+    nss_ref: optional (mu, sd) used to standardise NSS features. For cross-dataset tests pass the
+    SOURCE dataset's statistics, so the target data does not shape its own features.
+    Without it, NSS is standardised with the dataset's own statistics (fine in-domain).
+    """
     parts = spec.split(":", 1)[1].split("+") if spec.startswith("concat:") else [spec]
     blocks = []
     for bb in parts:
@@ -60,8 +72,7 @@ def load_features(feat_root, dataset: str, spec: str, names_in_order) -> np.ndar
             raise KeyError(f"{bb}: {len(missing)} images have no cached feature, e.g. {missing[:3]}")
         x = feats[[pos[n] for n in names_in_order]].astype(np.float32)
         if bb == "nss":
-            # NOTE: statistics are computed on the full set here; for a strict protocol,
-            # compute mu/sd on the index (train) split only. Effect is small for NSS.
-            x, _, _ = zscore(x)
+            # In-domain, statistics come from the whole (unlabelled) dataset; effect is small.
+            x, _, _ = zscore(x, *(nss_ref if nss_ref is not None else (None, None)))
         blocks.append(l2n(x))
     return l2n(np.concatenate(blocks, axis=1))

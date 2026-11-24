@@ -13,9 +13,9 @@ predictions depend on the evidence.
 |---|---|---|
 | E0 | Linear probe on frozen SigLIP / CLIP; LoRA reference | done (LoRA numbers pending) |
 | E1 | Training-free kNN (k, embedding, temperature sweep) | done |
-| E1b | Does retrieval add anything beyond a probe? PLS-kNN and probe + residual kNN | code ready |
-| E2 | Retrieval + cross-attention head | todo |
-| E3 | KonIQ → LIVEC, database update vs few-shot LoRA | todo |
+| E1b | Does retrieval add anything beyond a probe? PLS-kNN and probe + residual kNN | done |
+| E2 | Retrieval + cross-attention head | deferred until after E3 (see Finding 3) |
+| E3 | KonIQ → LIVE-itW, database update vs refit (few-shot LoRA on the same supports: todo) | code ready |
 | E4 | Shuffled-score test, KADID distortion precision@k, figures | partial (shuffle test in E1) |
 | E5 | VLM given retrieved images + scores (stretch) | todo |
 
@@ -28,12 +28,34 @@ KonIQ-10k, 5 reference-level splits, mean ± std on test. Negative results are r
 | Linear probe, SigLIP (E0) | 1,153 | 0.881 ± 0.006 | 0.901 ± 0.002 |
 | Linear probe, SigLIP2 (E0) | 1,153 | 0.878 ± 0.008 | 0.902 ± 0.005 |
 | Linear probe, CLIP-H (E0) | 1,025 | 0.894 ± 0.006 | 0.912 ± 0.003 |
+| Linear probe, SigLIP + CLIP-H + NSS (E1b) | 2,315 | 0.910 ± 0.004 | |
+| Probe + residual kNN, SigLIP + CLIP-H + NSS (E1b) | 2,315 | **0.913 ± 0.004** | |
 | LoRA (reference) | pending | pending | pending |
 
 **Finding 1.** Training-free retrieval on frozen generic embeddings is about 0.12 SRCC below a
 linear probe on the same features. The quality signal is present (the probe finds it) but
 cosine similarity is dominated by content, so nearest neighbours share scenes, not quality.
 Shuffling neighbour scores drops kNN to ~0 SRCC, as expected for a method with no other input.
+
+**Finding 2.** In a supervised projection (PLS, 8-16 dims, fitted on train MOS) kNN recovers most
+of the gap (CLIP-H 0.887, SigLIP 0.872), so E1 failed because of the similarity measure. It still
+does not beat the probe, and on the concatenated features it falls further behind (0.884 vs 0.910).
+Retrieval as the predictor itself is not competitive here.
+
+**Finding 3.** Retrieval as a correction on top of the probe adds a small but consistent gain:
+the probe plus a similarity-weighted mean of the neighbours' out-of-fold residuals.
+
+| Embedding | Probe | Probe + residual kNN | Gain | Splits improved | Shuffled residuals |
+|---|---|---|---|---|---|
+| CLIP-H | 0.8941 ± 0.0058 | 0.8972 ± 0.0053 | +0.0031 | 5/5 | 0.8910 |
+| SigLIP | 0.8813 ± 0.0060 | 0.8834 ± 0.0058 | +0.0021 | 5/5 | 0.8781 |
+| SigLIP + CLIP-H + NSS | 0.9095 ± 0.0039 | **0.9132 ± 0.0036** | +0.0037 | 5/5 | 0.9070 |
+
+The gain is real (positive on 15/15 paired comparisons; shuffling the residuals drops below the
+probe) but small: in-domain on KonIQ the neighbours correct a slight scene-level bias of the probe.
+The best k is usually 50-100, which points to broad bias correction rather than close matches.
+A learned cross-attention head (E2) can at best capture this ~0.003, so E3, where retrieval's
+real case lies (adding target data without retraining), comes first.
 
 ## Protocol
 - **Scores:** MOS normalised to [0, 1] per dataset using its fixed scale (KonIQ 1-5,
