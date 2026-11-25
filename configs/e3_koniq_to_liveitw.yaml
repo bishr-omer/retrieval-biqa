@@ -4,6 +4,7 @@ project_root: ..
 feat_root: ../cache
 source_dataset: koniq10k
 target: liveitw
+target_protocol: random    # every LIVE-itW image is its own scene
 split_kind: reference
 seed: 0
 embeddings: ["concat:siglip+cliph+nss", cliph]

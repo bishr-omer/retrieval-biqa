@@ -15,7 +15,7 @@ predictions depend on the evidence.
 | E1 | Training-free kNN (k, embedding, temperature sweep) | done |
 | E1b | Does retrieval add anything beyond a probe? PLS-kNN and probe + residual kNN | done |
 | E2 | Retrieval + cross-attention head | deferred until after E3 (see Finding 3) |
-| E3 | KonIQ → LIVE-itW, database update vs refit (few-shot LoRA on the same supports: todo) | code ready |
+| E3 | KonIQ → LIVE-itW: done. KonIQ → KADID-10k (large shift, scenes held out): code ready. Few-shot LoRA on the same supports: todo | partial |
 | E4 | Shuffled-score test, KADID distortion precision@k, figures | partial (shuffle test in E1) |
 | E5 | VLM given retrieved images + scores (stretch) | todo |
 
@@ -30,7 +30,7 @@ KonIQ-10k, 5 reference-level splits, mean ± std on test. Negative results are r
 | Linear probe, CLIP-H (E0) | 1,025 | 0.894 ± 0.006 | 0.912 ± 0.003 |
 | Linear probe, SigLIP + CLIP-H + NSS (E1b) | 2,315 | 0.910 ± 0.004 | |
 | Probe + residual kNN, SigLIP + CLIP-H + NSS (E1b) | 2,315 | **0.913 ± 0.004** | |
-| LoRA (reference) | pending | pending | pending |
+| LoRA r8 (q,v), SigLIP, multimodal-biqa (reference) | 1.72M (0.23% of backbone) | **0.950 ± 0.002** | 0.960 |
 
 **Finding 1.** Training-free retrieval on frozen generic embeddings is about 0.12 SRCC below a
 linear probe on the same features. The quality signal is present (the probe finds it) but
@@ -56,6 +56,31 @@ probe) but small: in-domain on KonIQ the neighbours correct a slight scene-level
 The best k is usually 50-100, which points to broad bias correction rather than close matches.
 A learned cross-attention head (E2) can at best capture this ~0.003, so E3, where retrieval's
 real case lies (adding target data without retraining), comes first.
+
+**Finding 4. Retrieval does not beat LoRA in-domain.** On the same 5 splits, LoRA r8 on SigLIP
+reaches 0.950 SRCC against 0.913 for the best retrieval method, a gap of 0.037 (over 10× the split
+std). Retrieval's case is cost: no GPU and ~2.3k trainable parameters, against 1.72M parameters
+and ~32 GPU-minutes per LoRA run. The ridge probes here match the multimodal-biqa frozen heads to
+within 0.001 SRCC on the same splits (SigLIP 0.8813 vs 0.8825; SigLIP+CLIP-H+NSS 0.9095 vs
+0.9088), which cross-checks splits and features between the two codebases. Every E1 number
+reproduces exactly on rerun.
+
+**Finding 5. KonIQ → LIVE-itW is too small a shift to separate the methods (E3).** Paired
+delta-SRCC against the zero-shot KonIQ probe, mean over 5 source splits × 10 support draws:
+
+| N target images added | Concat: database update (mixed index, k=100) | Concat: ridge refit | CLIP-H: database update | CLIP-H: ridge refit |
+|---|---|---|---|---|
+| 10 | +0.0004 | +0.0008 | +0.0040 | +0.0070 |
+| 25 | +0.0015 | +0.0020 | +0.0047 | +0.0109 |
+| 50 | +0.0033 | +0.0026 | +0.0066 | +0.0119 |
+| 100 | +0.0051 (100% of runs improved) | +0.0038 | +0.0080 | +0.0147 |
+
+Zero-shot is 0.823 (concat) against an in-domain LIVE-itW ceiling of 0.836, so there is only
+~0.013 SRCC to recover. On concat features the database update matches or slightly beats
+refitting from N = 50; on CLIP-H, refitting wins at every N. A target-only index hurts
+(k = 5: −0.03 to −0.05): a few noisy residuals are not reliable evidence. With a frozen backbone
+and a linear head, refitting the head is practically free, so "update without retraining" only
+pays off when retraining is expensive (LoRA). The next test uses a large shift: KonIQ → KADID-10k.
 
 ## Protocol
 - **Scores:** MOS normalised to [0, 1] per dataset using its fixed scale (KonIQ 1-5,
