@@ -121,8 +121,12 @@ statistics rather than content, is the exception (71% at k = 20).
 
 Texture artifacts are easy to match (denoise, high sharpen, colour quantization, colour block,
 impulse noise, JPEG: 0.72-0.83 at k = 10). Global photometric changes are hard (non-eccentricity
-patch, mean shift, motion blur, contrast change, darken: 0.10-0.23). Family-level precision
-(KADID's 7 distortion families) is in `results/e4/heldout_summary.csv`.
+patch, mean shift, motion blur, contrast change, darken: 0.10-0.23). At the level of KADID's 7
+distortion families, the concatenation matches 0.68 at k = 1 and 0.63 at k = 10 (chance 0.16).
+Much of the exact-type error is confusion between related types: white noise is 0.39 by type
+but 0.95 by family, Gaussian blur 0.30 and 0.66. Brightness changes stay hard even by family
+(mean shift, darken, brighten 0.36-0.42; contrast change 0.34). The numbers reproduce exactly
+on rerun.
 
 The KonIQ probe ranks blur well within type (motion and Gaussian blur 0.92), since blur is common
 in KonIQ, and fails on synthetic artifacts KonIQ never shows (mean shift 0.37, colour block 0.38,
