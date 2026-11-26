@@ -48,8 +48,17 @@ def draw(items, paths, out_file, title):
                 ax.imshow(img)
             else:
                 ax.text(0.5, 0.5, "image not found", ha="center", va="center", fontsize=8)
-            match = "" if c == 0 else (" ✓" if typ == it["query_type"] else "")
+            if c == 0:
+                match = ""
+            elif typ == it["query_type"]:
+                match = " ✓"
+            elif "family" in it["neighbours"][c - 1] and it["neighbours"][c - 1]["family"] == it.get("query_family"):
+                match = " ≈"
+            else:
+                match = ""
             label = f"{tag}  MOS {mos:.2f}\n{typ} L{lev}{match}"
+            if c == 0 and "knn_pred" in it:
+                label = f"QUERY  MOS {mos:.2f}  (kNN-{it['knn_k']}: {it['knn_pred']:.2f})\n{typ} L{lev}"
             if sim is not None:
                 label += f"\ncos {sim:.3f}"
             ax.set_title(label, fontsize=8)
@@ -79,7 +88,8 @@ def main():
     for i in range(0, len(items), a.rows):
         f = out / f"e4_kadid_neighbours_{i // a.rows + 1}.png"
         draw(items[i:i + a.rows], paths, f,
-             f"KADID-10k, held-out scenes, {data['embedding']}: query and top-5 neighbours (✓ = same distortion type)")
+             f"KADID-10k, held-out scenes, {data['embedding']}: query and top-5 neighbours "
+             f"(✓ same distortion type, ≈ same distortion family; kNN = similarity-weighted neighbour MOS)")
         print("wrote", f)
 
 

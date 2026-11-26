@@ -78,3 +78,16 @@ def test_make_figures(tmp_path):
                           "--out", str(tmp_path / "figs"), "--rows", "2"], capture_output=True, text=True)
     assert out.returncode == 0, out.stderr
     assert len(list((tmp_path / "figs").glob("*.png"))) == 2
+
+
+def test_family_precision_and_knn_labels(tmp_path):
+    tdf, X, ts = kadid_like()
+    r = run_e4.run({**CFG, "out_dir": str(tmp_path / "e4")}, tdf=tdf, X_by_emb=X, tsplits=ts)
+    a = r["heldout"]
+    assert (a.family_precision >= a.type_precision - 1e-12).all()
+    assert ((a.family_chance > a.type_chance) | (a.family_chance == a.type_chance)).all()
+    nb = json.loads((tmp_path / "e4/neighbours_heldout_scenes.json").read_text())
+    it = nb["items"][0]
+    assert "knn_pred" in it and "query_family" in it and "family" in it["neighbours"][0]
+    lo, hi = min(n["mos"] for n in it["neighbours"]), max(n["mos"] for n in it["neighbours"])
+    assert lo - 1e-9 <= it["knn_pred"] <= hi + 1e-9   # weighted mean of the 5 neighbours shown

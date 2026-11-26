@@ -51,6 +51,14 @@ KADID_TYPES = {
 }
 
 
+# The 7 distortion families of KADID-10k. Credits perceptually equivalent matches
+# (e.g. lens blur vs Gaussian blur) that exact-type precision counts as misses.
+KADID_FAMILY_OF = {**{t: "blur" for t in (1, 2, 3)}, **{t: "colour" for t in (4, 5, 6, 7, 8)},
+                   **{t: "compression" for t in (9, 10)}, **{t: "noise" for t in (11, 12, 13, 14, 15)},
+                   **{t: "brightness" for t in (16, 17, 18)}, **{t: "spatial" for t in (19, 20, 21, 22, 23)},
+                   **{t: "sharpness/contrast" for t in (24, 25)}}
+
+
 def topk_cosine(Q: np.ndarray, D: np.ndarray, k: int, self_offset: int | None = None, batch: int = 1024):
     """Top-k by inner product (rows are L2-normalised), batched to bound memory.
     self_offset: if Q is D[self_offset:...], drop each query's own row."""
@@ -88,6 +96,7 @@ def run(cfg: dict, tdf=None, X_by_emb=None, tsplits=None, koniq=None) -> dict:
     y = tdf["mos"].values
     dtype, dlev = tdf["dist_type"].values, tdf["dist_level"].values
     tl = dtype * 10 + dlev
+    fam = np.asarray([KADID_FAMILY_OF.get(int(t), "other") for t in dtype])
     refs = np.asarray(tdf["ref"].astype(str).tolist())
     ks = cfg["k"]; kmax = max(ks)
     out = Path(cfg["out_dir"]); out.mkdir(parents=True, exist_ok=True)
@@ -102,26 +111,37 @@ def run(cfg: dict, tdf=None, X_by_emb=None, tsplits=None, koniq=None) -> dict:
             nb_g = pool[nb]
             same_t = dtype[nb_g] == dtype[te][:, None]
             same_tl = tl[nb_g] == tl[te][:, None]
+            same_f = fam[nb_g] == fam[te][:, None]
             ch_t, ch_tl = chance(dtype[te], dtype[pool]), chance(tl[te], tl[pool])
+            ch_f = chance(fam[te], fam[pool])
             for k in ks:
                 pred = (weights(sims[:, :k], cfg["tau"]) * y[nb_g[:, :k]]).sum(1)
                 rows_a.append({"embedding": emb, "split": si, "k": k,
                                "type_precision": float(same_t[:, :k].mean()), "type_chance": ch_t,
                                "type_level_precision": float(same_tl[:, :k].mean()), "type_level_chance": ch_tl,
+                               "family_precision": float(same_f[:, :k].mean()), "family_chance": ch_f,
                                "knn_mos_srcc": srcc(pred, y[te])})
             k10 = min(10, kmax)
             for t in np.unique(dtype[te]):
                 m = dtype[te] == t
                 rows_type.append({"embedding": emb, "split": si, "dist_type": int(t),
                                   "name": KADID_TYPES.get(int(t), str(t)),
-                                  "type_precision_at10": float(same_t[m, :k10].mean())})
+                                  "family": KADID_FAMILY_OF.get(int(t), "other"),
+                                  "type_precision_at10": float(same_t[m, :k10].mean()),
+                                  "family_precision_at10": float(same_f[m, :k10].mean())})
             if si == 0 and emb == cfg["embeddings"][0]:
                 rng = np.random.default_rng(seed)
                 pick = rng.choice(len(te), size=min(cfg.get("n_figure_queries", 12), len(te)), replace=False)
+                kf = cfg.get("figure_k", 5)
+                w5 = weights(sims[:, :kf], cfg["tau"])
+                knn_raw = (w5 * tdf["mos_raw"].values[nb_g[:, :kf]]).sum(1)
                 nbr = [{"query": tdf["name"].values[te[i]], "query_mos": float(tdf["mos_raw"].values[te[i]]),
                         "query_type": KADID_TYPES.get(int(dtype[te[i]])), "query_level": int(dlev[te[i]]),
+                        "query_family": KADID_FAMILY_OF.get(int(dtype[te[i]])),
+                        "knn_pred": float(knn_raw[i]), "knn_k": kf,
                         "neighbours": [{"name": tdf["name"].values[j], "mos": float(tdf["mos_raw"].values[j]),
                                         "type": KADID_TYPES.get(int(dtype[j])), "level": int(dlev[j]),
+                                        "family": KADID_FAMILY_OF.get(int(dtype[j])),
                                         "sim": float(s)} for j, s in zip(nb_g[i, :5], sims[i, :5])]}
                        for i in pick]
                 (out / "neighbours_heldout_scenes.json").write_text(json.dumps({"embedding": emb, "items": nbr}, indent=2))
@@ -134,6 +154,8 @@ def run(cfg: dict, tdf=None, X_by_emb=None, tsplits=None, koniq=None) -> dict:
                            "same_scene_chance": chance(refs, refs) - 1 / len(refs),
                            "same_type": float((dtype[nb[:, :k]] == dtype[:, None]).mean()),
                            "same_type_chance": chance(dtype, dtype),
+                           "same_family": float((fam[nb[:, :k]] == fam[:, None]).mean()),
+                           "same_family_chance": chance(fam, fam),
                            "same_scene_and_type": float(((refs[nb[:, :k]] == refs[:, None]) &
                                                          (dtype[nb[:, :k]] == dtype[:, None])).mean())})
 
@@ -141,8 +163,10 @@ def run(cfg: dict, tdf=None, X_by_emb=None, tsplits=None, koniq=None) -> dict:
     a_s = a.groupby(["embedding", "k"], sort=False).agg(
         type_precision=("type_precision", "mean"), type_precision_std=("type_precision", "std"),
         type_chance=("type_chance", "mean"), type_level_precision=("type_level_precision", "mean"),
-        type_level_chance=("type_level_chance", "mean"), knn_mos_srcc=("knn_mos_srcc", "mean")).reset_index()
-    pt_s = pt.groupby(["embedding", "dist_type", "name"], sort=False).type_precision_at10.mean().reset_index()
+        type_level_chance=("type_level_chance", "mean"), family_precision=("family_precision", "mean"),
+        family_chance=("family_chance", "mean"), knn_mos_srcc=("knn_mos_srcc", "mean")).reset_index()
+    pt_s = pt.groupby(["embedding", "dist_type", "name", "family"], sort=False)[
+        ["type_precision_at10", "family_precision_at10"]].mean().reset_index()
     a.to_csv(out / "heldout_per_split.csv", index=False); a_s.to_csv(out / "heldout_summary.csv", index=False)
     b.to_csv(out / "all_scenes.csv", index=False); pt_s.to_csv(out / "per_type_precision.csv", index=False)
 
@@ -181,7 +205,7 @@ def run(cfg: dict, tdf=None, X_by_emb=None, tsplits=None, koniq=None) -> dict:
     for emb in pt_s.embedding.unique():
         print(f"\n== A per distortion type, {emb}: type precision@10 (chance ~0.04) ==")
         print(pt_s[pt_s.embedding == emb].sort_values("type_precision_at10")
-              [["dist_type", "name", "type_precision_at10"]].round(3).to_string(index=False))
+              [["dist_type", "name", "family", "type_precision_at10", "family_precision_at10"]].round(3).to_string(index=False))
     if c_s is not None:
         print(f"\n== C. KonIQ probe ({c_s.embedding.iloc[0]}) on KADID: SRCC within each distortion type ==")
         print(c_s[["dist_type", "name", "mean", "std"]].round(3).to_string(index=False))
