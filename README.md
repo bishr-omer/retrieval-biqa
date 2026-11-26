@@ -22,16 +22,14 @@ refitting on two domain shifts, and checks what the retrieved neighbours actuall
   query's distortion type at 11-14× chance. But they rarely share its severity, and averaging
   their scores discards exactly that.
 
-## Status
-| Exp | What | Status |
-|---|---|---|
-| E0 | Linear probe on frozen features; LoRA reference from multimodal-biqa | done |
-| E1 | Training-free kNN (k, embedding, temperature sweep) | done |
-| E1b | Does retrieval add anything beyond a probe? PLS-kNN and probe + residual kNN | done |
-| E2 | Retrieval + learned cross-attention head | dropped: in-domain headroom ~0.003 SRCC (Finding 3) |
-| E3 | Database update vs refit: KonIQ → LIVE-itW and KonIQ → KADID-10k (scenes held out) | done; LoRA arm optional |
-| E4 | What do neighbours match on KADID: scene, distortion type, family? Figures | done |
-| E5 | VLM given retrieved images + scores (stretch) | not started |
+## Experiments
+| Exp | What it tests |
+|---|---|
+| E0 | Linear probe on frozen features; LoRA reference from multimodal-biqa |
+| E1 | Training-free kNN (k, embedding, temperature sweep) |
+| E1b | Does retrieval add anything beyond a probe? PLS-kNN and probe + residual kNN |
+| E3 | Database update vs refit: KonIQ → LIVE-itW and KonIQ → KADID-10k (scenes held out) |
+| E4 | What do neighbours match on KADID: scene, distortion type or family? |
 
 ## Results
 KonIQ-10k, the 5 reference-level splits used for the LoRA experiments, mean ± std on test.
