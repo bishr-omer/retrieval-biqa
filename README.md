@@ -14,9 +14,9 @@ predictions depend on the evidence.
 | E0 | Linear probe on frozen SigLIP / CLIP; LoRA reference | done (LoRA numbers pending) |
 | E1 | Training-free kNN (k, embedding, temperature sweep) | done |
 | E1b | Does retrieval add anything beyond a probe? PLS-kNN and probe + residual kNN | done |
-| E2 | Retrieval + cross-attention head | deferred until after E3 (see Finding 3) |
-| E3 | KonIQ → LIVE-itW: done. KonIQ → KADID-10k (large shift, scenes held out): code ready. Few-shot LoRA on the same supports: todo | partial |
-| E4 | Shuffled-score test, KADID distortion precision@k, figures | partial (shuffle test in E1) |
+| E2 | Retrieval + cross-attention head | dropped (see Findings 3 and 6) |
+| E3 | KonIQ → LIVE-itW and KonIQ → KADID-10k (scenes held out): done. Few-shot LoRA on the same supports: optional | done |
+| E4 | What do neighbours match on KADID: scene or distortion? Per-type breakdown, KonIQ probe failures, figures | code ready |
 | E5 | VLM given retrieved images + scores (stretch) | todo |
 
 ## Results
@@ -81,6 +81,32 @@ refitting from N = 50; on CLIP-H, refitting wins at every N. A target-only index
 (k = 5: −0.03 to −0.05): a few noisy residuals are not reliable evidence. With a frozen backbone
 and a linear head, refitting the head is practically free, so "update without retraining" only
 pays off when retraining is expensive (LoRA). The next test uses a large shift: KonIQ → KADID-10k.
+
+**Finding 6. On a large shift, refitting the head beats the database update by 4-5×
+(E3, KonIQ → KADID-10k).** Support images come only from KADID training scenes and the test
+images from held-out scenes. Zero-shot SRCC is about 0.730 (concat) and 0.666 (CLIP-H), against
+in-domain ceilings of 0.888 and 0.848. Paired delta-SRCC against zero-shot, concat features,
+mean of 50 runs:
+
+| N | Database update (mixed, k=100) | Ridge refit | Refit, target at 10% weight | Refit + residual kNN |
+|---|---|---|---|---|
+| 10 | +0.001 | +0.009 | **+0.022** | +0.009 |
+| 50 | +0.005 | +0.032 | **+0.072** | +0.034 |
+| 100 | +0.014 | +0.059 | **+0.101** | +0.063 |
+| 250 | +0.021 | +0.086 | **+0.113** | +0.089 |
+
+The weighted refit recovers ~72% of the gap to the ceiling at N = 250 (0.113 of 0.158) using
+~4% of KADID's training data; the database update recovers ~13%. The weight was fixed before
+seeing results. Retrieval on top of the refit adds a small, consistent +0.002 to +0.004 (up to
++0.007 on CLIP-H). One exception: on CLIP-H, a target-only index with k = 10 beats the plain
+refit at small N (+0.018 vs +0.009 at N = 10) but not the weighted refit (+0.027).
+Interpretation: the shift is a global change in how features map to quality for distortion
+types KonIQ never shows. Refitting changes the head's direction for every image at once; a
+residual correction only shifts each image by its neighbours' mean error.
+
+**Overall.** Across in-domain KonIQ, a small shift (LIVE-itW) and a large shift (KADID),
+retrieval as a correction on frozen features never beats a properly weighted refit of a linear
+head. Its consistent contribution is a small gain on top of the refit. E4 tests why.
 
 ## Protocol
 - **Scores:** MOS normalised to [0, 1] per dataset using its fixed scale (KonIQ 1-5,

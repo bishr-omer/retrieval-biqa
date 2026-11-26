@@ -1,0 +1,16 @@
+# E4: what do neighbours match on KADID-10k: scene or distortion? Cached features, CPU only.
+source: manifest
+project_root: ..
+feat_root: ../cache
+source_dataset: koniq10k        # for NSS standardisation and part C (KonIQ probe)
+target: kadid10k
+split_kind: reference
+seed: 0
+embeddings: ["concat:siglip+cliph+nss", cliph, siglip, nss]
+k: [1, 5, 10, 20]
+tau: 0.1                        # for kNN-MOS SRCC (same as E1's best)
+probe_check: true
+probe_embedding: "concat:siglip+cliph+nss"
+alphas: [0.01, 0.1, 1.0, 10.0, 100.0]
+n_figure_queries: 12
+out_dir: results/e4
