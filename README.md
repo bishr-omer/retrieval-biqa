@@ -3,10 +3,9 @@
 Does retrieving similar images with known quality scores improve blind image quality
 prediction, and does the retrieved evidence actually explain the score?
 
-This is a skills project. Retrieval for IQA has been done before (see Related work).
-What this repo contributes is a careful protocol: leakage-free retrieval on the same splits as a
-LoRA baseline, a cost-versus-accuracy comparison, a fair test of database updates against
-refitting on two domain shifts, and checks of what the retrieved neighbours actually match.
+This repo compares retrieval-augmented quality prediction with a LoRA baseline on the same
+splits, without leakage. It measures cost against accuracy, tests database updates against
+refitting on two domain shifts, and checks what the retrieved neighbours actually match.
 
 ## Summary
 - **Retrieval does not beat LoRA.** Best retrieval method on KonIQ-10k: 0.913 SRCC. LoRA r8 on
